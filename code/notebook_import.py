@@ -18,7 +18,7 @@ def find_notebook(fullname, path=None):
     if not path:
         path = ['']
     for d in path:
-        nb_path = os.path.join(d, name + ".ipynb")
+        nb_path = os.path.join(d, f"{name}.ipynb")
         if os.path.isfile(nb_path):
             return nb_path
         # let import Notebook_Name find "Notebook Name.ipynb"
@@ -36,7 +36,7 @@ class NotebookLoader(object):
         """import a notebook as a module"""
         path = find_notebook(fullname, self.path)
 
-        print ("importing Jupyter notebook from %s" % path)
+        print(f"importing Jupyter notebook from {path}")
 
         # load the notebook object
         with io.open(path, 'r', encoding='utf-8') as f:

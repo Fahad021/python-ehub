@@ -34,7 +34,7 @@ class VizTool:
         self.model = model
         self.cmatrix = data.cMatrix()
         self.cap_dict = model.Capacities.get_values()
-        
+
         max_time = 0
         for key in self.demand:
             if key[1] > max_time:
@@ -42,100 +42,134 @@ class VizTool:
         self.time_steps = max_time
         self.week_h = 168
         self.time_weeks = self.time_steps // self.week_h
-        
-        self.nodes = []
-        for hubs in range(1,self.n_hubs+1):
-            self.nodes.append("Node" + str(hubs))
-        
-        self.e_forms = []
-        for forms in range(1,self.n_forms+1):
-            self.e_forms.append("Form" + str(forms))
-        
-        self.e_techs = []
-        for techs in range(1,self.n_techs+1):
-            self.e_techs.append("Tech " + str(techs))
+
+        self.nodes = [f"Node{str(hubs)}" for hubs in range(1,self.n_hubs+1)]
+        self.e_forms = [f"Form{str(forms)}" for forms in range(1,self.n_forms+1)]
+        self.e_techs = [f"Tech {str(techs)}" for techs in range(1,self.n_techs+1)]
                
               
     def demand_plot(self):
         data_dict = {}
         for forms in range(1,self.n_forms+1):
-            data_dict['node_data_' + str(forms)] = np.zeros((self.time_steps+1,self.n_hubs+1))
-            
+            data_dict[f'node_data_{str(forms)}'] = np.zeros(
+                (self.time_steps + 1, self.n_hubs + 1)
+            )
+
         data_dict['time_step'] = np.linspace(1,self.time_steps+1,self.time_steps+1)
-        
+
         for hub_step in range(1,self.n_hubs+1):
             for time_step in range(1,self.time_steps+1):
                 for forms in range(1,self.n_forms+1):
-                    (data_dict['node_data_' + str(forms)])[time_step][hub_step] = self.demand[hub_step,time_step,forms]
-                    
+                    data_dict[f'node_data_{str(forms)}'][time_step][
+                        hub_step
+                    ] = self.demand[hub_step, time_step, forms]
+
         for forms in range(1,self.n_forms+1):
             for hub_step in range(1,self.n_hubs+1):
-                data_dict['n' + str(hub_step) + str(forms)] = data_dict['node_data_' + str(forms)][1:,hub_step]
-            data_dict['n' + str(forms)] = data_dict['n'+str(1)+str(forms)]
-        
-        for forms in range(1,self.n_forms+1):    
-            data_dict['n_sum' + str(forms)] = np.sum(data_dict["node_data_" + str(forms)][1:,], axis=1)
-        
+                data_dict[f'n{str(hub_step)}{str(forms)}'] = data_dict[
+                    f'node_data_{str(forms)}'
+                ][1:, hub_step]
+            data_dict[f'n{str(forms)}'] = data_dict[f'n1{str(forms)}']
+
+        for forms in range(1,self.n_forms+1):
+            data_dict[f'n_sum{str(forms)}'] = np.sum(
+                data_dict[f"node_data_{str(forms)}"][1:], axis=1
+            )
+
         data_source = ColumnDataSource(data=data_dict)
         color = brewer['Set1'][self.n_forms]
-      
+
         #Demand Plot 1
         demand_plot_1 = figure(plot_width=1000, plot_height=300,title="Total energy Consumption")
         demand_plot_1.xaxis.axis_label = "Hours"
         demand_plot_1.yaxis.axis_label = "Energy Consumption(kW)"
         for forms in range(1,self.n_forms+1):
-            d_line = demand_plot_1.line('time_step','n_sum' + str(forms),legend = "Form " + str(forms),color=color[forms-1],source = data_source)
-            demand_plot_1.add_tools(HoverTool(renderers = [d_line],tooltips=[('Hour', '@time_step'),('Value', '@n_sum' + str(forms))]))
-            
+            d_line = demand_plot_1.line(
+                'time_step',
+                f'n_sum{str(forms)}',
+                legend=f"Form {str(forms)}",
+                color=color[forms - 1],
+                source=data_source,
+            )
+            demand_plot_1.add_tools(
+                HoverTool(
+                    renderers=[d_line],
+                    tooltips=[
+                        ('Hour', '@time_step'),
+                        ('Value', f'@n_sum{str(forms)}'),
+                    ],
+                )
+            )
+
         demand_plot_1.legend.location = "top_left"
         demand_plot_1.legend.click_policy="hide"
-        
+
         #Demand Plot 2
         demand_plot_2 = figure(plot_width=1000, plot_height=300,title="Energy Consumption per Node")
         demand_plot_2.xaxis.axis_label = "Hours"
         demand_plot_2.yaxis.axis_label = "Energy Consumption(kW)"
         for forms in range(1,self.n_forms+1):
-            d_line = demand_plot_2.line('time_step','n' + str(forms),source=data_source,legend = "Form " + str(forms),color=color[forms-1])
-            demand_plot_2.add_tools(HoverTool(renderers = [d_line],tooltips=[('Hour', '@time_step'),('Value', '@n' + str(forms))]))
-        
+            d_line = demand_plot_2.line(
+                'time_step',
+                f'n{str(forms)}',
+                source=data_source,
+                legend=f"Form {str(forms)}",
+                color=color[forms - 1],
+            )
+            demand_plot_2.add_tools(
+                HoverTool(
+                    renderers=[d_line],
+                    tooltips=[
+                        ('Hour', '@time_step'),
+                        ('Value', f'@n{str(forms)}'),
+                    ],
+                )
+            )
+
         demand_plot_2.legend.location = "top_left"
         demand_plot_2.legend.click_policy="hide"
-        
+
         def update_plot(attrname, old, new):
             node = node_select.value[-1:]
             for forms in range(1,self.n_forms+1):
-                data_source.data['n' + str(forms)] = data_source.data['n' + str(node) + str(forms)]
-                   
-        node_select = Select(value="Node1", title='Nodes', options=self.nodes)    
+                data_source.data[f'n{str(forms)}'] = data_source.data[
+                    f'n{str(node)}{str(forms)}'
+                ]
+
+        node_select = Select(value="Node1", title='Nodes', options=self.nodes)
         node_select.on_change('value', update_plot)
-        
+
         return column(demand_plot_1,row(demand_plot_2,node_select))
     
     def production(self):
 
         prodmat = {}
-    
+
         for hub_step in range(1,self.n_hubs+1):
             for time_step in range(1,self.time_steps+1):
                 for forms in range(1,self.n_forms+1):
                     for techs in range(1,self.n_techs+1):
                         prodmat[(hub_step,time_step,forms,techs)] = self.demand[(hub_step,time_step,forms)]*self.cmatrix[(techs,forms)]
-    
+
         prod_data = {}
-    
+
         for hub_step in range(1,self.n_hubs+1):
             for forms in range(1,self.n_forms+1):
                 for techs in range(1,self.n_techs+1):
-                    prod_data['n' + str(hub_step) + str(forms) + str(techs)] = np.zeros((self.time_steps+1))
+                    prod_data[
+                        f'n{str(hub_step)}{str(forms)}{str(techs)}'
+                    ] = np.zeros((self.time_steps + 1))
                     for time_step in range(1,self.time_steps+1):
-                        prod_data['n' + str(hub_step) + str(forms) + str(techs)][time_step] = prodmat[(hub_step,time_step,forms,techs)]
-    
+                        prod_data[f'n{str(hub_step)}{str(forms)}{str(techs)}'][
+                            time_step
+                        ] = prodmat[(hub_step, time_step, forms, techs)]
+
         prod_data['time_step'] = np.linspace(1,self.time_steps+1,self.time_steps+1)
-        
+
         cols = []
         for techs in range(1,self.n_techs+1):
-            cols.append('n' + str(11) + str(techs))
-    
+            cols.append(f'n11{str(techs)}')
+
         bar = Bar(prod_data,
                   values=blend(*cols, name='medals', labels_name='medal'),
                   label='time_step',
@@ -149,18 +183,18 @@ class VizTool:
                   plot_height = 300,
                   xlabel="Hours",
                   ylabel="Energy Production(kW)")
-    
+
         hover = HoverTool(
             tooltips = [
                 ("Hour", "@time_step"),
                 ("Value", "@height"),
             ]
         )
-    
+
         bar.add_tools(hover)
-        
+
         tech_legend1 = self.create_legend()
-    
+
         prod_dataw = {}
         if(self.time_weeks == 0):
             for k,v in prod_data.items():
@@ -171,7 +205,7 @@ class VizTool:
                 v = v[:self.time_weeks * self.week_h]
                 prod_dataw[k] = np.sum(v.reshape(-1, self.week_h), axis=1)
             prod_dataw['time_step'] = np.linspace(1,self.time_weeks,self.time_weeks)
-    
+
         bar_w = Bar(prod_dataw,
                   values=blend(*cols, name='medals', labels_name='medal'),
                   label='time_step',
@@ -185,25 +219,25 @@ class VizTool:
                   plot_height = 300,
                   xlabel="Weeks",
                   ylabel="Energy Production(kW)")
-    
+
         hover = HoverTool(
             tooltips = [
                 ("Hour", "@time_step"),
                 ("Value", "@height"),
             ]
         )
-    
+
         bar_w.add_tools(hover)
-    
+
         def update_plot(attrname, old, new):
             node = node_select.value[-1:]
             form = form_select.value[-1:]
-    
+
             cols = []
-    
+
             for techs in range(1,self.n_techs+1):
-                cols.append('n' + str(node) + str(form) + str(techs))    
-    
+                cols.append(f'n{str(node)}{str(form)}{str(techs)}')    
+
             pbar = Bar(prod_data,
                   values=blend(*cols, name='medals', labels_name='medal'),
                   label='time_step',
@@ -217,28 +251,28 @@ class VizTool:
                   plot_height = 300,
                   xlabel="Hours",
                   ylabel="Energy Production(kW)")
-    
-            hover = HoverTool(
-            tooltips = [
-                ("Hour", "@time_step"),
-                ("Value", "@height"),
-            ]
-        )
+
+                hover = HoverTool(
+                tooltips = [
+                    ("Hour", "@time_step"),
+                    ("Value", "@height"),
+                ]
+            )
             pbar.add_tools(hover)
-    
+
             disp_row.children[0] = pbar
-    
+
         def update_plotw(attrname, old, new):
             node = node_selectw.value[-1:]
             form = form_selectw.value[-1:]
-    
+
             cols = []
-    
+
             for techs in range(1,self.n_techs+1):
-                cols.append('n' + str(node) + str(form) + str(techs))
-                print ('n' + str(node) + str(form) + str(techs))
-    
-    
+                cols.append(f'n{str(node)}{str(form)}{str(techs)}')
+                print(f'n{str(node)}{str(form)}{str(techs)}')
+
+
             pbarw = Bar(prod_dataw,
                   values=blend(*cols, name='medals', labels_name='medal'),
                   label='time_step',
@@ -252,52 +286,55 @@ class VizTool:
                   plot_height = 300,
                   xlabel="Weeks",
                   ylabel="Energy Production(kW)")
-    
-            hover = HoverTool(
-            tooltips = [
-                ("Hour", "@time_step"),
-                ("Value", "@height"),
-            ]
-        )
+
+                hover = HoverTool(
+                tooltips = [
+                    ("Hour", "@time_step"),
+                    ("Value", "@height"),
+                ]
+            )
             pbarw.add_tools(hover)
-    
+
             disp_row_2.children[0] = pbarw
             fin_column.children[1] = self.create_legend()
-            
-        
+
+                
+
         node_select = Select(value="Node1", title='Nodes', options=self.nodes)
         form_select = Select(value="Form1", title='Forms', options=self.e_forms)
-    
+
         node_select.on_change('value', update_plot)
         form_select.on_change('value', update_plot)
-    
+
         controls = column(node_select, form_select)
         disp_row = row(bar,controls)
-    
+
         node_selectw = Select(value="Node1", title='Nodes', options=self.nodes)
         form_selectw = Select(value="Form1", title='Forms', options=self.e_forms)
-    
+
         node_selectw.on_change('value', update_plotw)
         form_selectw.on_change('value', update_plotw)
-    
+
         controlsw = column(node_selectw, form_selectw)
         disp_row_2 = row(bar_w,controlsw)
-        
+
         fin_column = column(disp_row,tech_legend1,disp_row_2)
-        
+
         return fin_column
                
     def capacities(self):
-    
+
         cap_source = {}
-        
+
         for techs in range(1,self.n_techs+1):
             for forms in range(1,self.n_forms+1):
-                cap_source['n' + str(techs) + str(forms)] = np.zeros((self.n_hubs))
+                cap_source[f'n{str(techs)}{str(forms)}'] = np.zeros((self.n_hubs))
                 for hub_step in range(1,self.n_hubs+1):
-                    cap_source['n' + str(techs) + str(forms)][hub_step-1] = self.cap_dict[(hub_step,techs,forms)]
-                #cap_source['n' + str(techs) + str(forms)] = np.array(cap_source['n' + str(techs) + str(forms)])
-        
+                    cap_source[f'n{str(techs)}{str(forms)}'][
+                        hub_step - 1
+                    ] = self.cap_dict[(hub_step, techs, forms)]
+                        #cap_source['n' + str(techs) + str(forms)] = np.array(cap_source['n' + str(techs) + str(forms)])
+
 #        for forms in range(1,self.n_forms+1):
 #            cap_source['n' + str(self.n_techs+2) + str(forms)] = np.zeros((self.n_hubs))
 #            for hub_step in range(1,self.n_hubs+1):
@@ -309,11 +346,11 @@ class VizTool:
 #            cap_source['n_list'].append( "Node " + str(hub_step))
         cap_source['n_list'] = self.nodes
         #cap_source['n21'] = np.array([34.8,78,54,12,90])
-                
+
         cols = []
         for techs in range(1,self.n_techs+1):
-            cols.append('n' + str(techs) + str(1))
-        
+            cols.append(f'n{str(techs)}{1}')
+
         v_bar = Bar(cap_source,
                   values=blend(*cols,name ="medal_v",labels_name = "medals"),
                   label='n_list',
@@ -327,22 +364,22 @@ class VizTool:
                   plot_height = 300,
                   xlabel="Nodes",
                   ylabel="Energy Capacity(kW)")
-        
+
         hover = HoverTool(
             tooltips = [
                 ("Node", "@n_list"),
                 ("Value", "@height"), 
             ]
         )
-        
+
         v_bar.add_tools(hover)
-        
+
         def update_plot(attrname, old, new):
             form = form_select.value[-1:]
             cols = []
             for techs in range(1,self.n_techs+1):
-                cols.append('n' + str(techs) + str(form))
-                
+                cols.append(f'n{str(techs)}{str(form)}')
+
             tbar = Bar(cap_source,
                   values=blend(*cols, name='medals', labels_name='medal'),
                   label='n_list',
@@ -356,35 +393,35 @@ class VizTool:
                   plot_height = 300,
                   xlabel="Nodes",
                   ylabel="Storage Capacity(kW)")
-        
-            hover = HoverTool(
-            tooltips = [
-                ("Node", "@n_list"),
-                ("Value", "@height"), 
-            ]
-        )
+
+                hover = HoverTool(
+                tooltips = [
+                    ("Node", "@n_list"),
+                    ("Value", "@height"), 
+                ]
+            )
             tbar.add_tools(hover)
-            
+
             disp_row_1.children[0] = tbar
             fin_column.children[1] = self.create_legend()
-        
-        form_select = Select(value="Form1", title='Forms', options=self.e_forms)    
+
+        form_select = Select(value="Form1", title='Forms', options=self.e_forms)
         form_select.on_change('value', update_plot)
-        
+
         tech_legend1 = self.create_legend() 
-        
+
         storage = model.StorageCap.get_values()
         print (storage)
         storage_dict = {}
         storage_dict['n_list'] = self.nodes
-           
+
         for forms in range(1,self.n_forms+1):
-            storage_dict['f' + str(forms)] = np.zeros((self.n_hubs))
+            storage_dict[f'f{str(forms)}'] = np.zeros((self.n_hubs))
             for hub_step in range(1,self.n_hubs+1):
-                storage_dict['f' + str(forms)][hub_step-1] = storage[(hub_step,forms)]
-        
+                storage_dict[f'f{str(forms)}'][hub_step-1] = storage[(hub_step,forms)]
+
 #        storage_dict['f1'] = [23,67,98,41,11]
-        
+
         storage_bar = Bar(storage_dict,
                   values='f1',
                   label='n_list',
@@ -394,42 +431,44 @@ class VizTool:
                   plot_height = 300,
                   xlabel="Nodes",
                   ylabel="Storage Capacity(kW)")
-        
+
         hover = HoverTool(
             tooltips = [
                 ("Node", "@n_list"),
                 ("Value", "@height"), 
             ]
         )
-        
+
         def update_plot_st(attrname, old, new):
             form = form_select_st.value[-1:]
-            
-            st_bar = Bar(storage_dict,
-                  values='f' + str(form),
-                  label='n_list',
-                  legend=None,
-                  title="Storage Capacity per Node",
-                  plot_width = 1000,
-                  plot_height = 300,
-                  xlabel="Nodes",
-                  ylabel="Storage Capacity(kW)")
-        
-            hover = HoverTool(
-            tooltips = [
-                ("Node", "@n_list"),
-                ("Value", "@height"), 
-            ]
-        )
-            
+
+            st_bar = Bar(
+                storage_dict,
+                values=f'f{str(form)}',
+                label='n_list',
+                legend=None,
+                title="Storage Capacity per Node",
+                plot_width=1000,
+                plot_height=300,
+                xlabel="Nodes",
+                ylabel="Storage Capacity(kW)",
+            )
+
+                hover = HoverTool(
+                tooltips = [
+                    ("Node", "@n_list"),
+                    ("Value", "@height"), 
+                ]
+            )
+
             st_bar.add_tools(hover)
-            
+
             disp_row_2.children[0] = st_bar
             fin_column.children[1] = self.create_legend()
-        
-        form_select_st = Select(value="Form1", title='Forms', options=self.e_forms)    
+
+        form_select_st = Select(value="Form1", title='Forms', options=self.e_forms)
         form_select_st.on_change('value', update_plot_st)
-        
+
         gis_dict = {}
         gis_dict['x'] = 14*np.random.rand(self.n_hubs,)
         gis_dict['y'] = 6*np.random.rand(self.n_hubs,)
@@ -442,19 +481,19 @@ class VizTool:
         gis_plot = figure(title="Node Locations with Capacities",plot_width=600, plot_height=600,x_range=x_range,y_range=y_range)
         gis_plot.xaxis.axis_label = "X Coordinates"
         gis_plot.yaxis.axis_label = "Y Coordinates"
-        
+
         for k,v in cap_source.items():
             gis_dict[k] = v
-            if(k != 'n_list' and v.max(axis=0)!= 0):
-                gis_dict[k + 'n'] = v/v.max(axis=0)*abs(max(y_range)*3)
+            if (k != 'n_list' and v.max(axis=0)!= 0):
+                gis_dict[f'{k}n'] = v/v.max(axis=0)*abs(max(y_range)*3)
             else:
-                gis_dict[k + 'n'] = gis_dict[k]
-        
+                gis_dict[f'{k}n'] = gis_dict[k]
+
         gis_dict['temp'] = gis_dict['n11']
         gis_dict['tempn'] = gis_dict['n11n']
-        
+
         gis_source = ColumnDataSource(data=gis_dict)
-        
+
         gis_plot.circle(x='x',
                         y='y',
                         radius='tempn',
@@ -462,37 +501,37 @@ class VizTool:
                         radius_dimension='y',
                         radius_units='screen',
                         )
-        
+
         gis_hover = HoverTool(tooltips = [
                                 ("X", "@x"),
                                 ("Y", "@y"),
                                 ("Value","@temp")
                                 ]
                         )
-        
+
         gis_plot.add_tools(gis_hover)
-        
+
         def update_plot_gis(attrname, old, new):
             form = form_select_gis.value[-1:]
             tech = tech_select_gis.value[-1:]
-            
-            gis_source.data['temp'] = gis_source.data['n' + str(tech) +str(form)]
-            gis_source.data['tempn'] = gis_source.data['n' + str(tech) +str(form) + 'n']
-        
+
+            gis_source.data['temp'] = gis_source.data[f'n{str(tech)}{str(form)}']
+            gis_source.data['tempn'] = gis_source.data[f'n{str(tech)}{str(form)}n']
+
         form_select_gis = Select(value="Form1", title='Forms', options=self.e_forms)
         tech_select_gis = Select(value="Tech1", title='Technologies', options=self.e_techs)
         form_select_gis.on_change('value', update_plot_gis)
         tech_select_gis.on_change('value', update_plot_gis)
-        
+
         controls = column(form_select)
         controls_2 = column(form_select_st)
         controls_3 = column(form_select_gis,tech_select_gis)
         disp_row_1 = row(v_bar,controls)
         disp_row_2 = row(storage_bar,controls_2)
         disp_row_3 = row(gis_plot,controls_3)
-        
+
         fin_column = column(disp_row_1,tech_legend1,disp_row_2,disp_row_3)
-        
+
         return fin_column
           
     def networks(self):
